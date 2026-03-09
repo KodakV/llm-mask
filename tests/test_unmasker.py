@@ -52,3 +52,45 @@ def test_empty_mapping():
     unmasker = Unmasker()
     text = "Unchanged text."
     assert unmasker.unmask(text, {}) == text
+
+
+# --- Prefix-dedup tests ---
+
+def test_no_prefix_dup_address():
+    """'д. <building_1>' with mapping 'д. 145' → '<building_1>' restores cleanly."""
+    u = Unmasker()
+    masked = "ул. Ленина, д. <building_1>, кв. <building_2>"
+    mapping = {"д. 145": "<building_1>", "кв. 32": "<building_2>"}
+    result = u.unmask(masked, mapping)
+    assert result == "ул. Ленина, д. 145, кв. 32"
+    assert "д. д." not in result
+    assert "кв. кв." not in result
+
+
+def test_no_prefix_dup_zipcode():
+    """'индекс <zipcode_1>' with mapping 'индекс 620014' restores cleanly."""
+    u = Unmasker()
+    masked = "г. Москва, индекс <zipcode_1>"
+    mapping = {"индекс 620014": "<zipcode_1>"}
+    result = u.unmask(masked, mapping)
+    assert result == "г. Москва, индекс 620014"
+    assert "индекс индекс" not in result
+
+
+def test_bare_placeholder_no_prefix_dup():
+    """Works for bare (no angle bracket) placeholders too."""
+    u = Unmasker()
+    masked = "Проект: project_1 запущен"
+    mapping = {"МойПроект": "project_1"}
+    result = u.unmask(masked, mapping)
+    assert result == "Проект: МойПроект запущен"
+
+
+def test_no_prefix_when_standalone():
+    """Placeholder not preceded by its original's first word — full original used."""
+    u = Unmasker()
+    masked = "Индекс: <zipcode_1>"
+    mapping = {"индекс 620014": "<zipcode_1>"}
+    # "Индекс:" is not "индекс" (case differs) — full original inserted
+    result = u.unmask(masked, mapping)
+    assert "620014" in result
