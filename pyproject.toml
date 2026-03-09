@@ -1,0 +1,51 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "llm-mask"
+version = "0.1.0"
+description = "Mask sensitive data in documents using a local OpenAI-compatible LLM"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+authors = [
+    { name = "Vladislav Kodak", email = "vladislavkodak@gmail.com" },
+]
+keywords = [
+    "pii", "masking", "anonymization", "llm", "privacy",
+    "sensitive-data", "openai", "local-llm", "nlp",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Text Processing :: Linguistic",
+    "Topic :: Security",
+]
+dependencies = ["openai>=1.0.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "ruff", "mypy"]
+
+[project.urls]
+Homepage = "https://github.com/vladislavkodak/llm-mask"
+Repository = "https://github.com/vladislavkodak/llm-mask"
+Issues = "https://github.com/vladislavkodak/llm-mask/issues"
+Changelog = "https://github.com/vladislavkodak/llm-mask/blob/main/CHANGELOG.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/llm_mask"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
