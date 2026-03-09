@@ -35,10 +35,10 @@ dependencies = ["openai>=1.0.0"]
 dev = ["pytest>=7.0", "ruff", "mypy"]
 
 [project.urls]
-Homepage = "https://github.com/vladislavkodak/llm-mask"
-Repository = "https://github.com/vladislavkodak/llm-mask"
-Issues = "https://github.com/vladislavkodak/llm-mask/issues"
-Changelog = "https://github.com/vladislavkodak/llm-mask/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/KodakV/llm-mask"
+Repository = "https://github.com/KodakV/llm-mask"
+Issues = "https://github.com/KodakV/llm-mask/issues"
+Changelog = "https://github.com/KodakV/llm-mask/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/llm_mask"]
