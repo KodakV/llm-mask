@@ -6,9 +6,11 @@ from ._chunker import split_into_chunks
 from ._judge import MaskingJudge
 from ._llm import _LLMClient
 from ._merger import ChunkMerger
-from ._parser import parse_llm_response, recover_mapping
+from ._parser import parse_llm_response, recover_mapping, repair_arrow_collisions
 from ._prompts import load_prompt
 from ._reader import read_file
+from ._regex_masker import RegexMasker
+from ._repair import repair_dup_ph
 from .mapping import MappingStore, MaskingResult
 from .unmasker import Unmasker
 
@@ -50,18 +52,21 @@ class MaskingClient:
         model: str = "local-model",
         api_key: str = "EMPTY",
         language: str = "ru",
-        chunk_size: int = 6000,
+        chunk_size: int = 3000,
         temperature: float = 0.0,
+        max_tokens: int = 16384,
         judge_model: str | None = None,
         judge_base_url: str | None = None,
         judge_api_key: str | None = None,
         judge_iterations: int = 3,
     ) -> None:
         self._llm = _LLMClient(
-            base_url=base_url, model=model, api_key=api_key, temperature=temperature
+            base_url=base_url, model=model, api_key=api_key,
+            temperature=temperature, max_tokens=max_tokens,
         )
         self._system_prompt = load_prompt(language)
         self._chunk_size = chunk_size
+        self._regex_masker = RegexMasker()
         self._unmasker = Unmasker()
 
         self._judge: MaskingJudge | None = None
@@ -77,9 +82,12 @@ class MaskingClient:
     def mask(self, text: str) -> MaskingResult:
         """Mask sensitive entities in *text*.
 
-        Internally: chunks the text → calls the masking LLM per chunk →
-        merges placeholders globally → optionally runs judge review cycles
-        to catch any missed entities.
+        Pipeline:
+        1. Deterministic regex pre-masking (emails, phones, IPs, URLs, secrets…)
+        2. LLM masking of fuzzy entities (names, companies, addresses…) per chunk
+        3. Merge regex + LLM mappings
+        4. Post-processing: repair DUP-PH and arrow collisions
+        5. Optional judge review cycles
 
         Supports both attribute access and tuple unpacking::
 
@@ -89,8 +97,12 @@ class MaskingClient:
 
             masked_text, mapping = client.mask(text)
         """
-        chunks = split_into_chunks(text, self._chunk_size)
-        merger = ChunkMerger()
+        # ── Stage 1: deterministic regex pre-masking ──────────────────────
+        pre_masked, regex_mapping = self._regex_masker.mask(text)
+
+        # ── Stage 2: LLM masking of fuzzy entities ────────────────────────
+        chunks = split_into_chunks(pre_masked, self._chunk_size)
+        merger = ChunkMerger(preloaded=regex_mapping)
         masked_parts: list[str] = []
 
         for chunk in chunks:
@@ -102,6 +114,14 @@ class MaskingClient:
 
         masked_text = "".join(masked_parts)
 
+        # ── Stage 3: merge regex + LLM mappings ──────────────────────────
+        combined_mapping = {**merger.global_mapping(), **regex_mapping}
+
+        # ── Stage 4: post-processing repairs ─────────────────────────────
+        masked_text, combined_mapping = repair_dup_ph(masked_text, combined_mapping)
+        masked_text = repair_arrow_collisions(masked_text, text, combined_mapping)
+
+        # ── Stage 5: optional judge ───────────────────────────────────────
         judge_iterations = 0
         remaining_entities: list[str] = []
 
@@ -115,7 +135,7 @@ class MaskingClient:
 
         return MaskingResult(
             masked_text=masked_text,
-            mapping=merger.global_mapping(),
+            mapping=combined_mapping,
             chunks_processed=len(chunks),
             judge_iterations=judge_iterations,
             remaining_entities=remaining_entities,
