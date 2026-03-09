@@ -1,9 +1,7 @@
 # llm-mask
 
-[![PyPI version](https://img.shields.io/pypi/v/llm-mask)](https://pypi.org/project/llm-mask/)
-[![Python](https://img.shields.io/pypi/pyversions/llm-mask)](https://pypi.org/project/llm-mask/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Tests](https://github.com/vladislavkodak/llm-mask/actions/workflows/tests.yml/badge.svg)](https://github.com/vladislavkodak/llm-mask/actions/workflows/tests.yml)
+[![Tests](https://github.com/KodakV/llm-mask/actions/workflows/tests.yml/badge.svg)](https://github.com/KodakV/llm-mask/actions/workflows/tests.yml)
 
 A Python library that masks sensitive data in documents (PII, tokens, URLs, company names, etc.) using a **local OpenAI-compatible LLM**, and restores the original text via a saved mapping — no data leaves your infrastructure.
 
@@ -119,7 +117,7 @@ results = client.mask_directory(
 ## Development
 
 ```bash
-git clone https://github.com/vladislavkodak/llm-mask
+git clone https://github.com/KodakV/llm-mask
 cd llm-mask
 pip install -e ".[dev]"
 pytest
