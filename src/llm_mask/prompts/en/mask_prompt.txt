@@ -196,7 +196,7 @@ Jan-Hendrik
 Efraïm
 Dragos-Paul
 
-Replace each name part with a separate placeholder:
+Replace each name part with a SEPARATE placeholder with its own UNIQUE number:
 
 <person_1>   ← given name / first name
 <person_2>   ← surname / last name
@@ -206,8 +206,25 @@ CRITICAL RULES:
 1. Replace ANY proper noun that is clearly a person's name — regardless of how unusual, foreign, or unfamiliar it sounds.
 2. When in doubt whether something is a name — MASK IT.
 3. Look for context clues: words like "Dear", "named", "contact", "patient", "customer", "client", "Mr.", "Ms.", "Miss", "Dr." before or after a proper noun confirm it is a person's name.
-4. If first name and last name appear together, replace EACH separately with its own placeholder.
+4. If first name and last name appear together, replace EACH separately with its own placeholder — NEVER use the same number for two different words.
 5. If only a first name appears — replace it. If only a surname appears — replace it.
+6. The same word must always map to the same placeholder. Different words must always have different placeholders.
+
+Example:
+
+Input:
+Ivan Petrov
+
+Correct:
+<person_1> <person_2>
+
+Mapping:
+Ivan -> <person_1>
+Petrov -> <person_2>
+
+Incorrect:
+<person_1> <person_1>   ← WRONG: same number used for two different words
+Ivan Petrov -> <person_1>  ← WRONG: full name as one entry, then duplicated in text
 
 ---
 
