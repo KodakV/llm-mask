@@ -11,9 +11,18 @@ class ChunkMerger:
       different originals).
     """
 
-    def __init__(self) -> None:
+    def __init__(self, preloaded: dict[str, str] | None = None) -> None:
         self._global_registry: dict[str, str] = {}
         self._counters: dict[str, int] = {}
+        if preloaded:
+            self._global_registry.update(preloaded)
+            for ph in preloaded.values():
+                ph_type = _extract_type(ph)
+                m = re.search(r"\d+", ph)
+                if m:
+                    n = int(m.group())
+                    if n > self._counters.get(ph_type, 0):
+                        self._counters[ph_type] = n
 
     def add_chunk(
         self, masked_text: str, mapping: dict[str, str]
