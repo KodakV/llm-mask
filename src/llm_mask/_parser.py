@@ -271,10 +271,16 @@ def _parse_mapping_lines(mapping_raw: str) -> dict[str, str]:
     """
     result: dict[str, str] = {}
     ph_seen: dict[str, str] = {}  # placeholder → first original that claimed it
+    line_counts: dict[str, int] = {}  # raw line → occurrence count
     for line in mapping_raw.splitlines():
         line = line.strip()
         if not line or "->" not in line:
             continue
+        # Loop guard: if the same raw line appears 3+ times, the model is in a
+        # repetition loop — stop parsing to avoid processing thousands of dupes.
+        line_counts[line] = line_counts.get(line, 0) + 1
+        if line_counts[line] >= 3:
+            break
         parts = line.split("->", 1)
         left = parts[0].strip()
         right = parts[1].strip()
@@ -290,11 +296,21 @@ def _parse_mapping_lines(mapping_raw: str) -> dict[str, str]:
         # Strip trailing punctuation that leaked from surrounding context
         # (e.g. a comma after a name in a sentence).
         original = original.rstrip(",;")
-        if original and not _PLACEHOLDER_RE.match(original):
-            # DUP-PH guard: skip if this placeholder was already claimed
-            # by a different original (repair_dup_ph handles it post-LLM).
-            if placeholder in ph_seen and ph_seen[placeholder] != original:
-                continue
-            ph_seen[placeholder] = original
-            result[original] = placeholder
+        if not original or _PLACEHOLDER_RE.match(original):
+            continue
+        # Skip keys that contain existing placeholder tokens — these are
+        # artefacts where the LLM included already-masked spans in the key
+        # (e.g. "ООО «Альфа», ОГРН <doc_3>, ИНН <doc_1>" → <doc_11>).
+        if _PH_IN_TEXT_RE.search(original):
+            continue
+        # Skip keys that contain the mapping arrow — these are firewall /
+        # network rules that the model mistakenly tried to map.
+        if "->" in original:
+            continue
+        # DUP-PH guard: skip if this placeholder was already claimed
+        # by a different original (repair_dup_ph handles it post-LLM).
+        if placeholder in ph_seen and ph_seen[placeholder] != original:
+            continue
+        ph_seen[placeholder] = original
+        result[original] = placeholder
     return result

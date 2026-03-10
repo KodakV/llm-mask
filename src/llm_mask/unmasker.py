@@ -1,14 +1,8 @@
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 from .mapping import MaskingResult
-
-_ADDRESS_PREFIXES: frozenset[str] = frozenset({
-    "г.", "д.", "кв.", "ул.", "пр.", "наб.", "корп.", "стр.",
-    "оф.", "индекс", "серия", "номер",
-})
 
 
 class Unmasker:
@@ -34,24 +28,32 @@ class Unmasker:
 def _context_replace(text: str, placeholder: str, original: str) -> str:
     """Replace *placeholder* with *original*, eliminating prefix duplication.
 
-    If the original starts with an address/context prefix word (e.g. "д.")
-    and that same word immediately precedes *placeholder* in the text, the
-    combined ``"prefix placeholder"`` span is replaced by *original* as a
-    whole (avoiding ``"д. д. 145"``).  All remaining bare occurrences of
-    *placeholder* are then replaced normally.
+    The LLM sometimes keeps a prefix of the original value as literal context
+    and only replaces the remaining suffix with the placeholder, e.g.:
+    - original = "д. 145", masked text = "д. <building_1>"  → "д. д. 145" (bad)
+    - original = "запись №12", masked text = "запись №<id_2>" → "запись №запись №12" (bad)
+    - original = "№МК-4567890", masked text = "№<doc_4>"      → "№№МК-4567890" (bad)
+
+    This function detects any prefix of ``original`` that appears immediately
+    before ``placeholder`` in the text, and replaces the combined span
+    ``(prefix + placeholder)`` with ``original`` as a whole — avoiding the
+    duplication.  Any remaining bare occurrences are then replaced normally.
     """
-    words = original.split()
-    if len(words) > 1:
-        first = words[0]
-        if first.lower() in _ADDRESS_PREFIXES or (first.endswith(".") and len(first) <= 4):
-            ph_esc = re.escape(placeholder)
-            first_esc = re.escape(first)
-            # Replace "first_word <placeholder>" → full original
-            text = re.sub(
-                first_esc + r"\s+" + ph_esc,
-                lambda _: original,
-                text,
-                flags=re.IGNORECASE,
-            )
-    # Replace any remaining bare occurrences
+    # Strip spurious surrounding quotes the LLM may have added around the placeholder
+    # (e.g. masked text has `"<id_1>"` but original is `987654321` without quotes).
+    if not (original.startswith('"') or original.startswith("'")):
+        for quote in ('"', "'"):
+            quoted_ph = quote + placeholder + quote
+            if quoted_ph in text:
+                text = text.replace(quoted_ph, original)
+
+    # Try prefixes of `original` from longest (all but last char) to shortest (1 char).
+    # If `original[:k] + placeholder` appears in text, replace it with original.
+    for k in range(len(original) - 1, 0, -1):
+        combined = original[:k] + placeholder
+        if combined in text:
+            text = text.replace(combined, original)
+            break
+
+    # Replace any remaining bare occurrences.
     return text.replace(placeholder, original)

@@ -173,6 +173,7 @@ def test_client_judge_wires_correctly():
         api_key="EMPTY",
         language="ru",
         max_iterations=2,
+        enable_thinking=False,
     )
 
 

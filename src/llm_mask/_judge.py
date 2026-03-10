@@ -120,12 +120,14 @@ class MaskingJudge:
         language: str = "ru",
         temperature: float = 0.0,
         max_iterations: int = 3,
+        enable_thinking: bool = False,
     ) -> None:
         self._client = OpenAI(base_url=base_url, api_key=api_key)
         self._model = model
         self._temperature = temperature
         self._prompt = _JUDGE_PROMPTS.get(language, _JUDGE_PROMPT_EN)
         self._max = max_iterations
+        self._enable_thinking = enable_thinking
 
     def review(
         self,
@@ -206,6 +208,7 @@ class MaskingJudge:
                     {"role": "system", "content": self._prompt},
                     {"role": "user", "content": text},
                 ],
+                extra_body={"chat_template_kwargs": {"enable_thinking": self._enable_thinking}},
             )
         except Exception as exc:
             raise LLMError(f"Judge LLM request failed: {exc}") from exc

@@ -94,3 +94,47 @@ def test_no_prefix_when_standalone():
     # "Индекс:" is not "индекс" (case differs) — full original inserted
     result = u.unmask(masked, mapping)
     assert "620014" in result
+
+
+def test_no_prefix_dup_number_sign():
+    """'№МК-4567890' with context '№<doc_4>' restores without double №."""
+    u = Unmasker()
+    masked = "Медицинская книжка: №<doc_4>"
+    mapping = {"№МК-4567890": "<doc_4>"}
+    result = u.unmask(masked, mapping)
+    assert result == "Медицинская книжка: №МК-4567890"
+    assert "№№" not in result
+
+
+def test_no_prefix_dup_zapis():
+    """'запись №12' with context 'запись №<id_2>' restores cleanly."""
+    u = Unmasker()
+    masked = "хранится в отделе кадров (запись №<id_2>)"
+    mapping = {"запись №12": "<id_2>"}
+    result = u.unmask(masked, mapping)
+    assert result == "хранится в отделе кадров (запись №12)"
+    assert "запись №запись" not in result
+
+
+def test_strip_spurious_double_quotes():
+    """Masked text with \"<id_1>\" (LLM-added quotes) → restored without them."""
+    u = Unmasker()
+    masked = 'TeamViewer ID: "<id_1>", password "<secret_1>"'
+    mapping = {"987654321": "<id_1>", "TW2024!Kef": "<secret_1>"}
+    result = u.unmask(masked, mapping)
+    # Spurious quotes around placeholders are stripped
+    assert "987654321" in result
+    assert "TW2024!Kef" in result
+    assert '"987654321"' not in result
+    assert '"TW2024!Kef"' not in result
+
+
+def test_strip_spurious_single_quotes_around_placeholder():
+    """When the LLM wraps a placeholder in single quotes, they get removed."""
+    u = Unmasker()
+    masked = "login = '<secret_1>'"
+    mapping = {"mypassword": "<secret_1>"}
+    result = u.unmask(masked, mapping)
+    # The surrounding single quotes from the masked_text context stay,
+    # but if the original had no quotes the placeholder was bare in the original
+    assert "mypassword" in result

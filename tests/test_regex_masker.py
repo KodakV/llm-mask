@@ -137,3 +137,94 @@ def test_mask_is_stateless_between_calls():
     _, mapping1 = m.mask("a@b.com")
     _, mapping2 = m.mask("a@b.com")
     assert mapping1 == mapping2  # same result for same input
+
+
+def test_masks_inn_in_table_cell():
+    """ИНН в ячейке таблицы (| ИНН | 662304567891 |) должен маскироваться."""
+    m = RegexMasker()
+    text, mapping = m.mask("| ИНН | 662304567891 |")
+    assert "662304567891" not in text
+    assert "<doc_1>" in text
+
+
+def test_masks_ogrn_in_table_cell():
+    m = RegexMasker()
+    text, mapping = m.mask("| ОГРН | 1167847312890 |")
+    assert "1167847312890" not in text
+    assert "<doc_1>" in text
+
+
+def test_url_no_backtick():
+    """URL regex must NOT include trailing backtick from markdown code span."""
+    m = RegexMasker()
+    text, mapping = m.mask("`https://api.example.com/v2`")
+    # The key should NOT end with a backtick
+    for orig in mapping:
+        assert not orig.endswith("`"), f"URL key has trailing backtick: {orig!r}"
+
+
+def test_masks_sendgrid_single_segment():
+    """SendGrid key without second dot-segment should be masked."""
+    m = RegexMasker()
+    text, mapping = m.mask("SG.ProdEmailKeyXyz789AbcDef012")
+    assert "SG.ProdEmailKeyXyz789AbcDef012" not in text
+    assert "<secret_1>" in text
+
+
+def test_masks_aws_key_id_short():
+    """AWS key IDs shorter than 20 chars (non-standard examples) are masked."""
+    m = RegexMasker()
+    text, mapping = m.mask("AWS_KEY=AKIAJQ6DTRPZEXAMPLE")
+    assert "AKIAJQ6DTRPZEXAMPLE" not in text
+
+
+def test_masks_telegram_bot_token():
+    m = RegexMasker()
+    text, mapping = m.mask("token: 7123456789:AAFProd_BotToken_XyzAbcDef01234")
+    assert "7123456789:AAFProd_BotToken_XyzAbcDef01234" not in text
+    assert "<secret_1>" in text
+
+
+def test_masks_s3_path():
+    m = RegexMasker()
+    text, mapping = m.mask("bucket: s3://my-data-bucket/reports/q3_2024.csv")
+    assert "s3://my-data-bucket/reports/q3_2024.csv" not in text
+    assert "<url_1>" in text
+
+
+def test_masks_ssh_key_name():
+    m = RegexMasker()
+    text, mapping = m.mask("SSH ключ: id_rsa_froloff_prod")
+    assert "id_rsa_froloff_prod" not in text
+    assert "<secret_1>" in text
+
+
+def test_masks_env_var_password():
+    """DB_PASSWORD=... value should be masked, key stays in text."""
+    m = RegexMasker()
+    text, mapping = m.mask("DB_PASSWORD=T0pS3cr3t!2024")
+    assert "T0pS3cr3t!2024" not in text
+    assert "DB_PASSWORD=" in text
+
+
+def test_masks_env_var_db_user():
+    m = RegexMasker()
+    text, mapping = m.mask("DB_USER=payment_user")
+    assert "payment_user" not in text
+    assert "DB_USER=" in text
+
+
+def test_masks_backtick_password_ru():
+    """пароль `T0pS3cr3t!2024` → password value masked."""
+    m = RegexMasker()
+    text, mapping = m.mask("пароль `T0pS3cr3t!2024`")
+    assert "T0pS3cr3t!2024" not in text
+    assert "<secret_1>" in text
+
+
+def test_masks_inline_password_after_keyword():
+    """SSH пароль: TmpAcc3ss!Nov24 → password value masked."""
+    m = RegexMasker()
+    text, mapping = m.mask("SSH пароль: TmpAcc3ss!Nov24")
+    assert "TmpAcc3ss!Nov24" not in text
+    assert "<secret_1>" in text

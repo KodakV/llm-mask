@@ -59,10 +59,14 @@ class MaskingClient:
         judge_base_url: str | None = None,
         judge_api_key: str | None = None,
         judge_iterations: int = 3,
+        enable_thinking: bool = False,
+        repeat_penalty: float = 1.1,
     ) -> None:
         self._llm = _LLMClient(
             base_url=base_url, model=model, api_key=api_key,
             temperature=temperature, max_tokens=max_tokens,
+            enable_thinking=enable_thinking,
+            repeat_penalty=repeat_penalty,
         )
         self._system_prompt = load_prompt(language)
         self._chunk_size = chunk_size
@@ -77,6 +81,7 @@ class MaskingClient:
                 api_key=judge_api_key or api_key,
                 language=language,
                 max_iterations=judge_iterations,
+                enable_thinking=enable_thinking,
             )
 
     def mask(self, text: str) -> MaskingResult:
@@ -109,7 +114,8 @@ class MaskingClient:
             raw = self._llm.complete(self._system_prompt, chunk)
             masked_chunk, chunk_mapping = parse_llm_response(raw)
             chunk_mapping = recover_mapping(chunk, masked_chunk, chunk_mapping)
-            patched, _ = merger.add_chunk(masked_chunk, chunk_mapping)
+            patched, _ = merger.add_chunk(masked_chunk, chunk_mapping,
+                                          pre_masked_chunk=chunk)
             masked_parts.append(patched)
 
         masked_text = "".join(masked_parts)

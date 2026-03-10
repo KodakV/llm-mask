@@ -270,3 +270,20 @@ def test_parse_mapping_deduplicates_dup_ph():
         ph_counts[v] = ph_counts.get(v, 0) + 1
     assert ph_counts.get("<person_1>", 0) == 1
     assert result["Boris"] == "<person_2>"
+
+
+def test_parse_mapping_skips_key_with_placeholder():
+    """Keys containing existing <ph_N> tokens must be dropped (artefact entries)."""
+    lines = "ООО «Альфа», ОГРН <doc_3>, ИНН <doc_1> -> <doc_11>\nИван -> <person_1>"
+    result = _parse_mapping_lines(lines)
+    # The nested entry should be skipped
+    assert "<doc_11>" not in result.values()
+    assert result.get("Иван") == "<person_1>"
+
+
+def test_parse_mapping_skips_arrow_in_original():
+    """Keys containing '->' (firewall rules) must be skipped."""
+    lines = "10.0.0.1 -> 10.0.0.2:5432 -> <rule_1>\nИван -> <person_1>"
+    result = _parse_mapping_lines(lines)
+    assert "<rule_1>" not in result.values()
+    assert result.get("Иван") == "<person_1>"
