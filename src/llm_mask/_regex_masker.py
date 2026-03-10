@@ -152,15 +152,15 @@ class RegexMasker:
             # Some patterns use a capture group (group 1) for the secret value
             try:
                 original = m.group(1)
-                span_start, span_end = m.start(1), m.end(1)
+                span_start = m.start(1)
             except IndexError:
                 original = m.group(0)
-                span_start, span_end = m.start(), m.end()
+                span_start = m.start()
 
             # If group 1 doesn't exist (no capturing group), fall back to full match
             if original is None:
                 original = m.group(0)
-                span_start, span_end = m.start(), m.end()
+                span_start = m.start()
 
             # Skip if it looks like an existing placeholder
             if _EXISTING_PH_RE.fullmatch(original.strip()):
