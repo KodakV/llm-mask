@@ -9,6 +9,7 @@ from ._merger import ChunkMerger
 from ._parser import parse_llm_response, recover_mapping, repair_arrow_collisions
 from ._prompts import load_prompt
 from ._reader import read_file
+from ._ner_masker import NerMasker
 from ._regex_masker import RegexMasker
 from ._repair import repair_dup_ph
 from .mapping import MappingStore, MaskingResult
@@ -32,6 +33,9 @@ class MaskingClient:
         Maximum characters per masking LLM request.
     temperature:
         Sampling temperature (0.0 = deterministic).
+    use_ner:
+        Enable NER pre-masking stage (requires ``pip install llm-mask[ner]``).
+        Automatically disabled if natasha is not installed.
     judge_model:
         When set, enables a second LLM pass that reviews the masked output
         and triggers re-masking of any paragraphs where sensitive entities
@@ -55,6 +59,7 @@ class MaskingClient:
         chunk_size: int = 3000,
         temperature: float = 0.0,
         max_tokens: int = 16384,
+        use_ner: bool = True,
         judge_model: str | None = None,
         judge_base_url: str | None = None,
         judge_api_key: str | None = None,
@@ -71,6 +76,7 @@ class MaskingClient:
         self._system_prompt = load_prompt(language)
         self._chunk_size = chunk_size
         self._regex_masker = RegexMasker()
+        self._ner_masker: NerMasker | None = NerMasker() if (use_ner and NerMasker.available) else None
         self._unmasker = Unmasker()
 
         self._judge: MaskingJudge | None = None
@@ -102,12 +108,17 @@ class MaskingClient:
 
             masked_text, mapping = client.mask(text)
         """
-        # ── Stage 1: deterministic regex pre-masking ──────────────────────
+        # ── Stage 1a: deterministic regex pre-masking ─────────────────────
         pre_masked, regex_mapping = self._regex_masker.mask(text)
+
+        # ── Stage 1b: NER pre-masking (optional) ──────────────────────────
+        ner_mapping: dict[str, str] = {}
+        if self._ner_masker is not None:
+            pre_masked, ner_mapping = self._ner_masker.mask(pre_masked, preloaded=regex_mapping)
 
         # ── Stage 2: LLM masking of fuzzy entities ────────────────────────
         chunks = split_into_chunks(pre_masked, self._chunk_size)
-        merger = ChunkMerger(preloaded=regex_mapping)
+        merger = ChunkMerger(preloaded={**regex_mapping, **ner_mapping})
         masked_parts: list[str] = []
 
         for chunk in chunks:
@@ -120,8 +131,8 @@ class MaskingClient:
 
         masked_text = "".join(masked_parts)
 
-        # ── Stage 3: merge regex + LLM mappings ──────────────────────────
-        combined_mapping = {**merger.global_mapping(), **regex_mapping}
+        # ── Stage 3: merge regex + NER + LLM mappings ────────────────────
+        combined_mapping = {**merger.global_mapping(), **ner_mapping, **regex_mapping}
 
         # ── Stage 4: post-processing repairs ─────────────────────────────
         masked_text, combined_mapping = repair_dup_ph(masked_text, combined_mapping)

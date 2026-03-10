@@ -435,7 +435,30 @@ Replace building/house/apartment/suite numbers when part of an address.
 
 ---
 
-16) Postal / ZIP codes
+16) Geographic locations (countries, regions, states, continents)
+
+Examples:
+
+United States
+California
+Europe
+APAC
+EMEA
+North America
+
+Replace with:
+
+<location_1>
+<location_2>
+
+Rules:
+
+Replace any specific country, state, region, continent, or other significant geographic entity.
+Do not replace generic words like "country" or "region" without a name.
+
+---
+
+16b) Postal / ZIP codes
 
 Examples:
 
@@ -451,7 +474,28 @@ Replace with:
 
 ---
 
-17) Dates of birth and personal dates
+17) Usernames / Logins
+
+Examples:
+
+payment_svc_v2
+support_sfp
+admin_user
+john.doe
+
+Replace with:
+
+<login_1>
+<login_2>
+
+Rules:
+
+Replace usernames or logins, especially in a code/config/credential-rotation context (e.g. `payment_svc_v2` in a password rotation sentence).
+Do not replace generic words like "admin" or "user" without a specific identifier context.
+
+---
+
+17b) Dates of birth and personal dates
 
 Examples:
 
@@ -642,13 +686,15 @@ E) REPLACEMENT PRIORITY
 6 Phones
 7 Identity documents (passport, SSN, driving licence, credit card, bank account)
 8 IDs (values)
-9 Dates of birth
-10 Times of day
-11 Ages
-12 Physical address: ZIP code, city, street, building number
-13 Companies
-14 Services
-15 People (first name, last name, username, title, gender)
+9 Logins / Usernames
+10 Dates of birth
+11 Times of day
+12 Ages
+13 Physical address: ZIP code, city, street, building number
+14 Geographic locations (countries, regions, continents)
+15 Companies
+16 Services
+17 People (first name, last name, username, title, gender)
 
 ---
 
